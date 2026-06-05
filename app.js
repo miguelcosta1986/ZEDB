@@ -162,6 +162,60 @@ function normalizeOmdb(d) {
   };
 }
 
+// ── AUTH STATE ───────────────────────────────────
+let currentUser = null;
+
+function isLoggedIn() { return !!currentUser; }
+
+function renderNavAuth() {
+  const el = document.getElementById('navAuth');
+  if (!el) return;
+  if (isLoggedIn()) {
+    el.innerHTML = `
+      <span class="nav-user">${esc(currentUser.email)}</span>
+      <button class="btn-logout" id="btnLogout">Sair</button>`;
+    document.getElementById('btnLogout').addEventListener('click', handleLogout);
+  } else {
+    el.innerHTML = `<button class="btn-login" id="btnLogin">Entrar</button>`;
+    document.getElementById('btnLogin').addEventListener('click', () =>
+      document.getElementById('loginModal').classList.remove('hidden'));
+  }
+}
+
+async function handleLogout() {
+  await db.auth.signOut();
+  currentUser = null;
+  renderNavAuth();
+  renderApp();
+  showToast('Sessão terminada');
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginSubmit');
+  const err = document.getElementById('loginError');
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  btn.textContent = 'A entrar...'; btn.disabled = true;
+  err.style.display = 'none';
+
+  const { data, error } = await db.auth.signInWithPassword({ email, password });
+  if (error) {
+    err.textContent = 'Email ou password incorrectos.';
+    err.style.display = 'block';
+    btn.textContent = 'Entrar'; btn.disabled = false;
+  } else {
+    currentUser = data.user;
+    document.getElementById('loginModal').classList.add('hidden');
+    document.getElementById('loginForm').reset();
+    btn.textContent = 'Entrar'; btn.disabled = false;
+    renderNavAuth();
+    renderApp();
+    showToast('Bem-vindo 👋');
+  }
+}
+
 // ── STATE ────────────────────────────────────────
 let currentView   = 'mural';
 let currentFilter = { type: 'all', genre: 'all', sort: 'personalRating', query: '' };
@@ -417,10 +471,11 @@ function buildFiltersBar(genres, isWatchlist) {
 
   return `
     <div class="filters-bar">
+      ${isLoggedIn() ? `
       <button class="btn-add btn-add-inline" id="btnAddInline">
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Adicionar
-      </button>
+      </button>` : ''}
       <div class="filter-search-wrap">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         <input class="filter-search" id="filterQuery" placeholder="Pesquisar..." value="${esc(currentFilter.query)}" />
@@ -493,7 +548,7 @@ function buildCard(movie, listType) {
         </div>
         ${movie.personalRating ? `<div class="card-personal-rating">${movie.personalRating}</div>` : ''}
         <div class="card-type-badge">${typeLabel(movie.type)}</div>
-        ${listType === 'watchlist' ? `<button class="watchlist-move-btn" data-id="${movie.imdbId}">✓ Já vi</button>` : ''}
+        ${listType === 'watchlist' && isLoggedIn() ? `<button class="watchlist-move-btn" data-id="${movie.imdbId}">✓ Já vi</button>` : ''}
       </div>
       <div class="card-info">
         <div class="card-title">${esc(movie.title)}</div>
@@ -756,13 +811,14 @@ function openDetailModal(id, listType) {
             <div class="detail-review">"${esc(movie.review)}"</div>
           </div>` : ''}
 
+        ${isLoggedIn() ? `
         <div class="detail-divider"></div>
         <div class="detail-actions">
           ${isWatchlist
             ? `<button class="btn-primary" id="detailMoveToMural" data-id="${movie.imdbId}">✓ Já vi — Adicionar ao Mural</button>`
             : `<button class="btn-ghost" id="detailEdit" data-id="${movie.imdbId}">Editar nota / review</button>`}
           <button class="btn-danger" id="detailDelete" data-id="${movie.imdbId}" data-list="${listType}">Remover</button>
-        </div>
+        </div>` : ''}
       </div>
     </div>`;
 
@@ -875,8 +931,20 @@ function initEvents() {
   document.getElementById('registerForm').addEventListener('submit', handleRegisterSubmit);
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeDetailModal(); closeAddModal(); closeRegisterModal(); }
+    if (e.key === 'Escape') {
+      closeDetailModal(); closeAddModal(); closeRegisterModal();
+      document.getElementById('loginModal').classList.add('hidden');
+    }
   });
+
+  // Login modal
+  document.getElementById('closeLoginModal').addEventListener('click', () =>
+    document.getElementById('loginModal').classList.add('hidden'));
+  document.getElementById('loginModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget)
+      document.getElementById('loginModal').classList.add('hidden');
+  });
+  document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
 }
 
 // ── INIT ─────────────────────────────────────────
@@ -888,6 +956,11 @@ async function init() {
     <div style="display:flex;align-items:center;justify-content:center;height:60vh;gap:12px;color:var(--muted)">
       <span class="spinner"></span> A carregar...
     </div>`;
+
+  // Restaurar sessão existente
+  const { data: { session } } = await db.auth.getSession();
+  currentUser = session?.user ?? null;
+  renderNavAuth();
 
   try {
     await loadData();

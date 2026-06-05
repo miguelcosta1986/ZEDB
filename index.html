@@ -26,6 +26,8 @@
       <button class="nav-btn" data-view="stats">Estatísticas</button>
     </div>
 
+    <div class="nav-auth" id="navAuth"></div>
+
   </nav>
 
   </nav>
@@ -33,6 +35,34 @@
   <!-- ── MAIN ── -->
   <main id="app"></main>
 
+
+  <!-- ── MODAL: LOGIN ── -->
+  <div class="modal-overlay hidden" id="loginModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Entrar</h2>
+        <button class="modal-close" id="closeLoginModal">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 2l14 14M16 2L2 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="loginForm">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="o teu email" autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
+          </div>
+          <div id="loginError" style="color:#e05555;font-size:13px;margin-bottom:12px;display:none"></div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-full" id="loginSubmit">Entrar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <!-- ── MODAL: ADICIONAR ── -->
   <div class="modal-overlay hidden" id="addModal">
