@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZEDB Cinema</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ── NAVBAR ── -->
+  <nav class="navbar">
+    <div class="nav-logo">
+      <span class="logo-mark">Z</span>
+      <div class="logo-text-group">
+        <span class="logo-title">ZEDB</span>
+        <span class="logo-sub">cinema</span>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <button class="nav-btn active" data-view="mural">Mural</button>
+      <button class="nav-btn" data-view="watchlist">Ver Depois</button>
+      <button class="nav-btn" data-view="stats">Estatísticas</button>
+    </div>
+
+  </nav>
+
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <main id="app"></main>
+
+
+  <!-- ── MODAL: ADICIONAR ── -->
+  <div class="modal-overlay hidden" id="addModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Adicionar ao Mural</h2>
+        <button class="modal-close" id="closeAddModal">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 2l14 14M16 2L2 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-hint">Cola um link do IMDB ou escreve o nome do filme/série</p>
+        <div class="search-row">
+          <input type="text" id="searchInput" placeholder="https://www.imdb.com/title/tt... ou título" autocomplete="off" />
+          <button class="btn-primary" id="btnSearch">Pesquisar</button>
+        </div>
+        <div id="searchResults"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: DETALHE ── -->
+  <div class="modal-overlay hidden" id="detailModal">
+    <div class="modal modal-large">
+      <button class="modal-close modal-close-detail" id="closeDetailModal">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 2l14 14M16 2L2 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div id="detailContent"></div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: FORM REGISTO ── -->
+  <div class="modal-overlay hidden" id="registerModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="registerTitle">Registar</h2>
+        <button class="modal-close" id="closeRegisterModal">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 2l14 14M16 2L2 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="registerMoviePreview"></div>
+        <form id="registerForm">
+          <div class="form-group">
+            <label>A tua nota <span class="label-sub">(1–10)</span></label>
+            <div class="rating-row" id="ratingRow"></div>
+            <div class="rating-custom-wrap">
+              <span class="rating-custom-label">ou escreve:</span>
+              <input type="number" id="ratingInput" min="1" max="10" step="0.1" placeholder="ex: 7.5" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Review / Comentário <span class="label-sub">(opcional)</span></label>
+            <textarea id="reviewInput" rows="3" placeholder="O que achaste?"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-full">Guardar no Mural</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
