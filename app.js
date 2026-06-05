@@ -303,6 +303,7 @@ function renderWatchlistView(container) {
 
 // ── STATS ─────────────────────────────────────────
 let statsFilter = 'all'; // 'all' | 'movie' | 'series'
+let statsSortBy = { genres: 'count', directors: 'count', actors: 'count' };
 
 function renderStats(container) {
   const all       = getWatched();
@@ -318,29 +319,38 @@ function renderStats(container) {
   const avgImdb     = imdbRated.length
     ? (imdbRated.reduce((s, m) => s + parseFloat(m.imdbRating), 0) / imdbRated.length).toFixed(1) : '—';
 
-  // Genres
-  const genreMap = {};
-  watched.forEach(m => m.genre.forEach(g => { genreMap[g] = (genreMap[g] || 0) + 1; }));
-  const genres   = Object.entries(genreMap).sort((a, b) => b[1] - a[1]);
-  const maxGenre = genres[0]?.[1] || 1;
+  // Helper: build aggregated stats [name, count, avgRating]
+  function buildAgg(entries) {
+    const counts  = {};
+    const ratings = {};
+    entries.forEach(([key, rating]) => {
+      counts[key]  = (counts[key] || 0) + 1;
+      if (rating != null) {
+        if (!ratings[key]) ratings[key] = [];
+        ratings[key].push(rating);
+      }
+    });
+    return Object.keys(counts).map(k => {
+      const rs  = ratings[k] || [];
+      const avg = rs.length ? parseFloat((rs.reduce((s, r) => s + r, 0) / rs.length).toFixed(1)) : null;
+      return [k, counts[k], avg];
+    });
+  }
 
-  // Directors
-  const directorMap = {};
-  watched.forEach(m => {
-    if (!m.director) return;
-    m.director.split(', ').forEach(d => { directorMap[d] = (directorMap[d] || 0) + 1; });
-  });
-  const directors = Object.entries(directorMap).sort((a, b) => b[1] - a[1]);
-  const maxDir    = directors[0]?.[1] || 1;
+  const sortAgg = (arr, key) => [...arr].sort((a, b) =>
+    key === 'rating' ? (b[2] ?? 0) - (a[2] ?? 0) : b[1] - a[1]);
 
-  // Actors
-  const actorMap = {};
-  watched.forEach(m => {
-    if (!m.actors) return;
-    m.actors.split(', ').forEach(a => { actorMap[a] = (actorMap[a] || 0) + 1; });
-  });
-  const actors   = Object.entries(actorMap).sort((a, b) => b[1] - a[1]);
-  const maxActor = actors[0]?.[1] || 1;
+  const genreRaw    = watched.flatMap(m => m.genre.map(g => [g, m.personalRating ?? null]));
+  const directorRaw = watched.flatMap(m => m.director ? m.director.split(', ').map(d => [d, m.personalRating ?? null]) : []);
+  const actorRaw    = watched.flatMap(m => m.actors   ? m.actors.split(', ').map(a => [a, m.personalRating ?? null])   : []);
+
+  const genres    = sortAgg(buildAgg(genreRaw),    statsSortBy.genres);
+  const directors = sortAgg(buildAgg(directorRaw), statsSortBy.directors);
+  const actors    = sortAgg(buildAgg(actorRaw),    statsSortBy.actors);
+
+  const maxGenre = Math.max(...genres.map(g => g[1]),    1);
+  const maxDir   = Math.max(...directors.map(d => d[1]), 1);
+  const maxActor = Math.max(...actors.map(a => a[1]),    1);
 
   // Total time
   const totalMinutes = watched.reduce((sum, m) => {
@@ -362,21 +372,31 @@ function renderStats(container) {
   const recent = [...watched]
     .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt)).slice(0, 5);
 
-  const barSection = (title, items, max) => {
+  const drillType = { 'Géneros': 'genre', 'Realizadores': 'director', 'Actores': 'actor' };
+
+  const barSection = (title, items, max, sortKey) => {
     const id      = 'bar_' + title.replace(/\s/g, '_');
     const preview = 5;
     const hasMore = items.length > preview;
-    const rows = items.map(([label, count], i) => `
+    const type    = drillType[title];
+    const rows = items.map(([label, count, avg], i) => `
       <div class="genre-bar-item" ${i >= preview ? `style="display:none"` : ''} data-bar-extra>
-        <div class="genre-bar-label">${esc(label)}</div>
+        <div class="genre-bar-label genre-bar-label-link" onclick="openDrill('${type}','${label.replace(/'/g, "\\'")}')">${esc(label)}</div>
         <div class="genre-bar-track">
           <div class="genre-bar-fill" style="width:${Math.round((count/max)*100)}%"></div>
         </div>
         <div class="genre-bar-count">${count}</div>
+        ${avg != null ? `<div class="genre-bar-avg">${avg.toFixed(1)}</div>` : '<div class="genre-bar-avg">—</div>'}
       </div>`).join('');
     return `
     <div class="stats-section" id="${id}">
-      <div class="stats-section-title">${title}</div>
+      <div class="stats-section-header">
+        <div class="stats-section-title">${title}</div>
+        <div class="stats-sort-toggle">
+          <button class="stats-sort-btn ${sortKey === 'count'  ? 'active' : ''}" onclick="setStatSort('${id}','count')">Nº</button>
+          <button class="stats-sort-btn ${sortKey === 'rating' ? 'active' : ''}" onclick="setStatSort('${id}','rating')">Nota</button>
+        </div>
+      </div>
       ${rows}
       ${hasMore ? `<button class="btn-ver-mais" onclick="toggleBarSection('${id}')">Ver mais (${items.length - preview})</button>` : ''}
     </div>`;
@@ -413,9 +433,9 @@ function renderStats(container) {
     </div>
 
     <div class="stats-sections-grid">
-      ${genres.length    ? barSection('Géneros',     genres,    maxGenre) : ''}
-      ${directors.length ? barSection('Realizadores', directors, maxDir)   : ''}
-      ${actors.length    ? barSection('Actores',      actors,    maxActor)  : ''}
+      ${genres.length    ? barSection('Géneros',      genres,    maxGenre, statsSortBy.genres)    : ''}
+      ${directors.length ? barSection('Realizadores', directors, maxDir,   statsSortBy.directors) : ''}
+      ${actors.length    ? barSection('Actores',      actors,    maxActor, statsSortBy.actors)    : ''}
 
       ${topRated.length ? `
       <div class="stats-section">
@@ -683,6 +703,8 @@ function closeSuggestModal() {
   document.getElementById('suggestModal').classList.add('hidden');
   pendingSuggestMovie = null;
   selectedSuggestor   = null;
+  const btn = document.getElementById('confirmSuggest');
+  if (btn) { btn.textContent = 'Guardar na Watchlist'; btn.disabled = false; }
 }
 
 // ── ADD MODAL ─────────────────────────────────────
@@ -966,6 +988,42 @@ function moveToMural(id) {
 }
 
 // ── UTILS ─────────────────────────────────────────
+function openDrill(type, value) {
+  const watched = getWatched();
+  let movies;
+  if      (type === 'genre')    movies = watched.filter(m => m.genre.includes(value));
+  else if (type === 'director') movies = watched.filter(m => m.director?.split(', ').includes(value));
+  else if (type === 'actor')    movies = watched.filter(m => m.actors?.split(', ').includes(value));
+
+  movies = movies.sort((a, b) => (b.personalRating || 0) - (a.personalRating || 0));
+
+  document.getElementById('drillTitle').textContent = value;
+  document.getElementById('drillContent').innerHTML = `
+    <div class="drill-list">
+      ${movies.map(m => `
+        <div class="drill-item">
+          ${m.poster
+            ? `<img class="drill-poster" src="${m.poster}" alt="${esc(m.title)}" loading="lazy" />`
+            : `<div class="drill-poster drill-poster-empty">🎬</div>`}
+          <div class="drill-info">
+            <div class="drill-movie-title">${esc(m.title)}</div>
+            <div class="drill-movie-meta">${m.year} · ${typeLabel(m.type)}</div>
+          </div>
+          ${m.personalRating != null
+            ? `<div class="drill-rating">${m.personalRating}</div>`
+            : `<div class="drill-rating drill-rating-empty">—</div>`}
+        </div>`).join('')}
+    </div>`;
+
+  document.getElementById('drillModal').classList.remove('hidden');
+}
+
+function setStatSort(id, sortBy) {
+  const keyMap = { 'bar_Géneros': 'genres', 'bar_Realizadores': 'directors', 'bar_Actores': 'actors' };
+  const key = keyMap[id];
+  if (key) { statsSortBy[key] = sortBy; renderStats(document.getElementById('app')); }
+}
+
 function toggleBarSection(id) {
   const section  = document.getElementById(id);
   const extras   = section.querySelectorAll('[data-bar-extra]');
@@ -1051,6 +1109,13 @@ function initEvents() {
       closeDetailModal(); closeAddModal(); closeRegisterModal();
       document.getElementById('loginModal').classList.add('hidden');
     }
+  });
+
+  // Drill modal
+  document.getElementById('closeDrillModal').addEventListener('click', () =>
+    document.getElementById('drillModal').classList.add('hidden'));
+  document.getElementById('drillModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) document.getElementById('drillModal').classList.add('hidden');
   });
 
   // Suggest modal
