@@ -5,7 +5,25 @@
 // ── CONFIG ───────────────────────────────────────
 const API_KEY      = '313a4651';
 const OMDB_URL     = 'https://www.omdbapi.com/';
-const SUPABASE_URL = 'https://iiymgunbihbctpcyulhb.supabase.co';
+const SUPABASE_URL   = 'https://iiymgunbihbctpcyulhb.supabase.co';
+const SUGGESTORS_KEY = 'zedb_suggestors';
+
+function getSuggestors() {
+  const saved = JSON.parse(localStorage.getItem(SUGGESTORS_KEY) || '[]');
+  const defaults = ['Pai', 'Mãe', 'Luís'];
+  const all = [...new Set([...defaults, ...saved])];
+  return all;
+}
+
+function saveSuggestor(name) {
+  const defaults = ['Pai', 'Mãe', 'Luís'];
+  if (defaults.includes(name)) return;
+  const saved = JSON.parse(localStorage.getItem(SUGGESTORS_KEY) || '[]');
+  if (!saved.includes(name)) {
+    saved.push(name);
+    localStorage.setItem(SUGGESTORS_KEY, JSON.stringify(saved));
+  }
+}
 const SUPABASE_KEY = 'sb_publishable_JW88Uk3ArNzkcV5x9tsEDw_lw6QFOh3';
 
 // ── SUPABASE CLIENT ───────────────────────────────
@@ -56,6 +74,7 @@ function fromDb(row) {
     review:         row.review,
     addedAt:        row.added_at,
     totalSeasons:   row.total_seasons,
+    suggestedBy:    row.suggested_by,
   };
 }
 
@@ -83,13 +102,14 @@ async function addToWatched(movie) {
               ..._watched.filter(m => m.imdbId !== movie.imdbId)];
 }
 
-async function addToWatchlist(movie) {
-  const row = { ...toDb(movie) };
+async function addToWatchlist(movie, suggestedBy = null) {
+  const row = { ...toDb(movie), suggested_by: suggestedBy };
   delete row.personal_rating;
   delete row.review;
   const { error } = await db.from('watchlist').upsert(row, { onConflict: 'imdb_id' });
   if (error) throw error;
-  _watchlist = [{ ...movie, addedAt: new Date().toISOString() },
+  if (suggestedBy) saveSuggestor(suggestedBy);
+  _watchlist = [{ ...movie, addedAt: new Date().toISOString(), suggestedBy },
                 ..._watchlist.filter(m => m.imdbId !== movie.imdbId)];
 }
 
@@ -471,10 +491,10 @@ function buildFiltersBar(genres, isWatchlist) {
 
   return `
     <div class="filters-bar">
-      ${isLoggedIn() ? `
+      ${isLoggedIn() || isWatchlist ? `
       <button class="btn-add btn-add-inline" id="btnAddInline">
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        Adicionar
+        ${isWatchlist && !isLoggedIn() ? 'Sugerir' : 'Adicionar'}
       </button>` : ''}
       <div class="filter-search-wrap">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -553,6 +573,7 @@ function buildCard(movie, listType) {
       <div class="card-info">
         <div class="card-title">${esc(movie.title)}</div>
         <div class="card-meta">${movie.year}${movie.imdbRating ? ' · ★ ' + movie.imdbRating : ''}</div>
+        ${movie.suggestedBy ? `<span class="card-suggestor">💡 ${esc(movie.suggestedBy)}</span>` : ''}
       </div>
     </div>`;
 }
@@ -582,6 +603,60 @@ function emptyState(view) {
       <div class="empty-sub">Guarda filmes que queres ver mais tarde clicando em <strong>"Ver depois"</strong> quando pesquisas.</div>
     </div>`;
   return `<div class="empty-state"><div class="empty-title">Sem resultados</div></div>`;
+}
+
+// ── SUGGEST MODAL ────────────────────────────────
+let pendingSuggestMovie = null;
+let selectedSuggestor   = null;
+
+function openSuggestModal(movie) {
+  pendingSuggestMovie = movie;
+  selectedSuggestor   = null;
+
+  document.getElementById('suggestModal').classList.remove('hidden');
+
+  document.getElementById('suggestMoviePreview').innerHTML = `
+    <div class="register-preview">
+      ${movie.poster ? `<img src="${movie.poster}" alt="${esc(movie.title)}" />` : '<span style="font-size:24px">🎬</span>'}
+      <div>
+        <div class="register-preview-title">${esc(movie.title)}</div>
+        <div class="register-preview-meta">${movie.year} · ${typeLabel(movie.type)}</div>
+      </div>
+    </div>`;
+
+  renderSuggestorChips();
+  document.getElementById('newSuggestorWrap').style.display = 'none';
+  document.getElementById('newSuggestorInput').value = '';
+}
+
+function renderSuggestorChips() {
+  const chips = document.getElementById('suggestorChips');
+  const list  = [...getSuggestors(), '+ Outro'];
+  chips.innerHTML = list.map(name => `
+    <button class="suggestor-chip ${selectedSuggestor === name ? 'active' : ''}" data-name="${esc(name)}">
+      ${esc(name)}
+    </button>`).join('');
+
+  chips.querySelectorAll('.suggestor-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.name === '+ Outro') {
+        selectedSuggestor = null;
+        document.getElementById('newSuggestorWrap').style.display = 'block';
+        document.getElementById('newSuggestorInput').focus();
+      } else {
+        selectedSuggestor = btn.dataset.name;
+        document.getElementById('newSuggestorWrap').style.display = 'none';
+      }
+      chips.querySelectorAll('.suggestor-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+}
+
+function closeSuggestModal() {
+  document.getElementById('suggestModal').classList.add('hidden');
+  pendingSuggestMovie = null;
+  selectedSuggestor   = null;
 }
 
 // ── ADD MODAL ─────────────────────────────────────
@@ -668,12 +743,11 @@ function attachResultListeners() {
       try {
         const data  = await omdbById(btn.dataset.id);
         const movie = normalizeOmdb(data);
-        await addToWatchlist(movie);
         closeAddModal();
-        showToast(`"${movie.title}" guardado na watchlist 📋`);
-        if (currentView === 'watchlist') renderApp();
+        openSuggestModal(movie);
       } catch (err) {
         showToast(err.message, 'error');
+        btn.textContent = 'Ver depois'; btn.disabled = false;
       }
     });
   });
@@ -934,6 +1008,28 @@ function initEvents() {
     if (e.key === 'Escape') {
       closeDetailModal(); closeAddModal(); closeRegisterModal();
       document.getElementById('loginModal').classList.add('hidden');
+    }
+  });
+
+  // Suggest modal
+  document.getElementById('closeSuggestModal').addEventListener('click', closeSuggestModal);
+  document.getElementById('suggestModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeSuggestModal();
+  });
+  document.getElementById('confirmSuggest').addEventListener('click', async () => {
+    const btn = document.getElementById('confirmSuggest');
+    const newName = document.getElementById('newSuggestorInput').value.trim();
+    const suggestor = newName || selectedSuggestor;
+
+    btn.textContent = 'A guardar...'; btn.disabled = true;
+    try {
+      await addToWatchlist(pendingSuggestMovie, suggestor);
+      closeSuggestModal();
+      showToast(`"${pendingSuggestMovie.title}" guardado na watchlist 📋`);
+      if (currentView === 'watchlist') renderApp();
+    } catch (err) {
+      showToast(err.message, 'error');
+      btn.textContent = 'Guardar na Watchlist'; btn.disabled = false;
     }
   });
 

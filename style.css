@@ -1064,6 +1064,40 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .rating-custom-wrap input[type="number"]:focus { border-color: var(--red); }
 .rating-custom-wrap input[type="number"]::-webkit-inner-spin-button { opacity: 0.5; }
 
+/* ── SUGGESTOR CHIPS ── */
+.suggestor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.suggestor-chip {
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  color: var(--white);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.suggestor-chip:hover  { border-color: var(--red); color: var(--red); }
+.suggestor-chip.active { border-color: var(--red); background: var(--red); color: #fff; }
+
+.card-suggestor {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 2px 7px;
+  background: var(--surface-3);
+  border-radius: 10px;
+  margin-top: 3px;
+  display: inline-block;
+}
+
 /* ── REGISTER PREVIEW ── */
 .register-preview {
   display: flex;

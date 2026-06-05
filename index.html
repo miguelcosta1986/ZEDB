@@ -36,6 +36,31 @@
   <main id="app"></main>
 
 
+  <!-- ── MODAL: SUGERIR ── -->
+  <div class="modal-overlay hidden" id="suggestModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Quem sugere?</h2>
+        <button class="modal-close" id="closeSuggestModal">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 2l14 14M16 2L2 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="suggestMoviePreview"></div>
+        <div class="form-group">
+          <div class="suggestor-chips" id="suggestorChips"></div>
+        </div>
+        <div class="form-group" id="newSuggestorWrap" style="display:none">
+          <label>Nome</label>
+          <input type="text" id="newSuggestorInput" placeholder="ex: Avó" maxlength="30" />
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary btn-full" id="confirmSuggest">Guardar na Watchlist</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── MODAL: LOGIN ── -->
   <div class="modal-overlay hidden" id="loginModal">
     <div class="modal">
