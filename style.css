@@ -502,6 +502,18 @@ body {
 
 .stat-value.red { color: var(--red); }
 
+.stats-sections-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .stats-sections-grid { grid-template-columns: 1fr; }
+  .stat-card-hero { padding: 20px 16px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+
 .stats-section {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -518,6 +530,20 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.8px;
 }
+
+.btn-ver-mais {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0 0;
+  display: block;
+  transition: opacity var(--transition);
+}
+.btn-ver-mais:hover { opacity: 0.75; }
 
 /* genre bars */
 .genre-bar-item {

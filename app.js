@@ -321,7 +321,7 @@ function renderStats(container) {
   // Genres
   const genreMap = {};
   watched.forEach(m => m.genre.forEach(g => { genreMap[g] = (genreMap[g] || 0) + 1; }));
-  const genres   = Object.entries(genreMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const genres   = Object.entries(genreMap).sort((a, b) => b[1] - a[1]);
   const maxGenre = genres[0]?.[1] || 1;
 
   // Directors
@@ -330,7 +330,7 @@ function renderStats(container) {
     if (!m.director) return;
     m.director.split(', ').forEach(d => { directorMap[d] = (directorMap[d] || 0) + 1; });
   });
-  const directors = Object.entries(directorMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const directors = Object.entries(directorMap).sort((a, b) => b[1] - a[1]);
   const maxDir    = directors[0]?.[1] || 1;
 
   // Actors
@@ -339,7 +339,7 @@ function renderStats(container) {
     if (!m.actors) return;
     m.actors.split(', ').forEach(a => { actorMap[a] = (actorMap[a] || 0) + 1; });
   });
-  const actors   = Object.entries(actorMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const actors   = Object.entries(actorMap).sort((a, b) => b[1] - a[1]);
   const maxActor = actors[0]?.[1] || 1;
 
   // Total time
@@ -362,18 +362,25 @@ function renderStats(container) {
   const recent = [...watched]
     .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt)).slice(0, 5);
 
-  const barSection = (title, items, max) => `
-    <div class="stats-section">
+  const barSection = (title, items, max) => {
+    const id      = 'bar_' + title.replace(/\s/g, '_');
+    const preview = 5;
+    const hasMore = items.length > preview;
+    const rows = items.map(([label, count], i) => `
+      <div class="genre-bar-item" ${i >= preview ? `style="display:none"` : ''} data-bar-extra>
+        <div class="genre-bar-label">${esc(label)}</div>
+        <div class="genre-bar-track">
+          <div class="genre-bar-fill" style="width:${Math.round((count/max)*100)}%"></div>
+        </div>
+        <div class="genre-bar-count">${count}</div>
+      </div>`).join('');
+    return `
+    <div class="stats-section" id="${id}">
       <div class="stats-section-title">${title}</div>
-      ${items.map(([label, count]) => `
-        <div class="genre-bar-item">
-          <div class="genre-bar-label">${esc(label)}</div>
-          <div class="genre-bar-track">
-            <div class="genre-bar-fill" style="width:${Math.round((count/max)*100)}%"></div>
-          </div>
-          <div class="genre-bar-count">${count}</div>
-        </div>`).join('')}
+      ${rows}
+      ${hasMore ? `<button class="btn-ver-mais" onclick="toggleBarSection('${id}')">Ver mais (${items.length - preview})</button>` : ''}
     </div>`;
+  };
 
   container.innerHTML = `
     <div class="view-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
@@ -405,7 +412,7 @@ function renderStats(container) {
       <div class="stat-card"><div class="stat-label">Com review</div><div class="stat-value">${watched.filter(m => m.review).length}</div></div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="stats-sections-grid">
       ${genres.length    ? barSection('Géneros',     genres,    maxGenre) : ''}
       ${directors.length ? barSection('Realizadores', directors, maxDir)   : ''}
       ${actors.length    ? barSection('Actores',      actors,    maxActor)  : ''}
@@ -959,6 +966,20 @@ function moveToMural(id) {
 }
 
 // ── UTILS ─────────────────────────────────────────
+function toggleBarSection(id) {
+  const section  = document.getElementById(id);
+  const extras   = section.querySelectorAll('[data-bar-extra]');
+  const btn      = section.querySelector('.btn-ver-mais');
+  const hidden   = [...extras].some(el => el.style.display === 'none');
+  const preview  = 5;
+  extras.forEach((el, i) => {
+    if (i >= preview) el.style.display = hidden ? '' : 'none';
+  });
+  btn.textContent = hidden
+    ? 'Ver menos'
+    : `Ver mais (${extras.length - preview})`;
+}
+
 function formatTotalTime(minutes) {
   if (minutes === 0) return '0 min';
   if (minutes < 60) return `${minutes} min`;
