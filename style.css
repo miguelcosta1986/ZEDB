@@ -980,6 +980,9 @@ body {
 }
 
 .form-group input[type="date"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="text"],
 .form-group textarea {
   width: 100%;
   background: var(--surface-2);
@@ -995,6 +998,11 @@ body {
 }
 .form-group input:focus,
 .form-group textarea:focus { border-color: var(--red); }
+.form-group input[type="email"]:-webkit-autofill,
+.form-group input[type="password"]:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0px 1000px #1e1e1e inset;
+  -webkit-text-fill-color: var(--white);
+}
 .form-group textarea { min-height: 80px; }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
