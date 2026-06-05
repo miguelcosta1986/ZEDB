@@ -239,7 +239,7 @@ async function handleLoginSubmit(e) {
 
 // ── STATE ────────────────────────────────────────
 let currentView   = 'mural';
-let currentFilter = { type: 'all', genre: 'all', sort: 'personalRating', query: '' };
+let currentFilter = { type: 'all', genre: 'all', sort: 'personalRating', query: '', suggestor: 'all' };
 let pendingMovie  = null;
 let pendingDest   = null;
 let editingId     = null;
@@ -247,7 +247,7 @@ let editingId     = null;
 // ── NAVIGATION ───────────────────────────────────
 function navigate(view) {
   currentView = view;
-  currentFilter = { type: 'all', genre: 'all', sort: 'personalRating', query: '' };
+  currentFilter = { type: 'all', genre: 'all', sort: 'personalRating', query: '', suggestor: 'all' };
   document.querySelectorAll('.nav-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.view === view));
   renderApp();
@@ -474,6 +474,9 @@ function applyFilters(movies, isWatchlist = false) {
       (m.director && m.director.toLowerCase().includes(q)) ||
       (m.actors   && m.actors.toLowerCase().includes(q)));
   }
+
+  if (currentFilter.suggestor !== 'all')
+    list = list.filter(m => m.suggestedBy === currentFilter.suggestor);
   const s = currentFilter.sort;
   list.sort((a, b) => {
     if (s === 'title')          return a.title.localeCompare(b.title);
@@ -511,6 +514,16 @@ function buildFiltersBar(genres, isWatchlist) {
         <option value="all">Todos os géneros</option>
         ${genres.map(g => `<option value="${esc(g)}" ${currentFilter.genre === g ? 'selected' : ''}>${esc(g)}</option>`).join('')}
       </select>` : ''}
+
+      ${isWatchlist ? (() => {
+        const suggestors = [...new Set(getWatchlist().map(m => m.suggestedBy).filter(Boolean))];
+        return suggestors.length ? `
+        <select class="filter-select" id="filterSuggestor">
+          <option value="all">Todos</option>
+          ${suggestors.map(s => `<option value="${esc(s)}" ${currentFilter.suggestor === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+        </select>` : '';
+      })() : ''}
+
       <select class="filter-select" id="filterSort">
         ${sortOptions.replace(`value="${currentFilter.sort}"`, `value="${currentFilter.sort}" selected`)}
       </select>
@@ -537,6 +550,11 @@ function attachFilterListeners(isWatchlist = false) {
   });
   document.getElementById('filterSort')?.addEventListener('change', e => {
     currentFilter.sort = e.target.value;
+    refreshGrid(isWatchlist);
+  });
+
+  document.getElementById('filterSuggestor')?.addEventListener('change', e => {
+    currentFilter.suggestor = e.target.value;
     refreshGrid(isWatchlist);
   });
 }
@@ -1026,9 +1044,10 @@ function initEvents() {
 
     btn.textContent = 'A guardar...'; btn.disabled = true;
     try {
+      const title = pendingSuggestMovie.title;
       await addToWatchlist(pendingSuggestMovie, suggestor);
       closeSuggestModal();
-      showToast(`"${pendingSuggestMovie.title}" guardado na watchlist 📋`);
+      showToast(`"${title}" guardado na watchlist 📋`);
       if (currentView === 'watchlist') renderApp();
     } catch (err) {
       showToast(err.message, 'error');
