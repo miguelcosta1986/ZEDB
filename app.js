@@ -106,6 +106,7 @@ async function addToWatchlist(movie, suggestedBy = null) {
   const row = { ...toDb(movie), suggested_by: suggestedBy };
   delete row.personal_rating;
   delete row.review;
+  delete row.total_seasons;
   const { error } = await db.from('watchlist').upsert(row, { onConflict: 'imdb_id' });
   if (error) throw error;
   if (suggestedBy) saveSuggestor(suggestedBy);
@@ -712,9 +713,11 @@ function buildSearchResult(m) {
         <div class="result-meta">${m.year} · ${typeLabel(m.type)}</div>
       </div>
       <div class="result-actions">
-        ${alreadyWatched
-          ? `<button class="btn-sm btn-sm-ghost" disabled>✓ No mural</button>`
-          : `<button class="btn-sm btn-sm-primary result-add-watched" data-id="${m.imdbId}">Já vi</button>`}
+        ${isLoggedIn()
+          ? alreadyWatched
+            ? `<button class="btn-sm btn-sm-ghost" disabled>✓ No mural</button>`
+            : `<button class="btn-sm btn-sm-primary result-add-watched" data-id="${m.imdbId}">Já vi</button>`
+          : ''}
         ${alreadyWatchlist
           ? `<button class="btn-sm btn-sm-ghost" disabled>✓ Na lista</button>`
           : `<button class="btn-sm btn-sm-ghost result-add-watchlist" data-id="${m.imdbId}">Ver depois</button>`}
