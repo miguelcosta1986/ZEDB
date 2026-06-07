@@ -1323,22 +1323,57 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
-  .navbar { padding: 0 16px; gap: 12px; }
+  .navbar { padding: 0 16px; gap: 8px; }
   .logo-text-group { display: none; }
   #app { padding: 24px 16px 60px; }
   .nav-btn { font-size: 13px; padding: 6px 10px; }
   .btn-add span { display: none; }
-  .detail-layout { flex-direction: column; }
-  .detail-poster, .detail-poster-placeholder { width: 120px; }
+
+  /* Nav auth: hide email, keep only logout/login button */
+  .nav-user { display: none; }
+  .btn-logout { font-size: 11px; padding: 5px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); }
+  .btn-login { font-size: 12px; padding: 5px 12px; }
+
+  /* Detail modal */
+  .modal-large { max-height: 95vh; }
+  .detail-layout {
+    flex-direction: column;
+    padding: 16px;
+    gap: 16px;
+  }
+  .detail-poster { width: 100px; }
+  .detail-poster-placeholder { width: 100px; height: 150px; font-size: 32px; }
+  .detail-title { font-size: 19px; }
+  .detail-actions {
+    flex-direction: column;
+  }
+  .detail-actions .btn-primary,
+  .detail-actions .btn-ghost,
+  .detail-actions .btn-danger {
+    width: 100%;
+    text-align: center;
+  }
+  .detail-meta-grid { grid-template-columns: 1fr; }
+  .detail-ratings { gap: 8px; }
+
   .movies-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
-  .detail-meta-grid { grid-template-columns: 1fr; }
   .rating-row { flex-wrap: wrap; }
+
+  /* Filters bar on mobile */
+  .filters-bar { gap: 8px; }
+  .filter-select { font-size: 12px; padding: 7px 28px 7px 10px; }
 }
 
 @media (max-width: 480px) {
   .movies-grid { grid-template-columns: repeat(3, 1fr); }
   .nav-links { gap: 0; }
+  .navbar { gap: 4px; }
+
+  /* Stack filter bar items */
+  .filters-bar { flex-direction: column; align-items: stretch; }
+  .filter-chip { align-self: flex-start; }
+  .filter-search-wrap { min-width: unset; }
 }
 
 /* ── SPINNER ── */
