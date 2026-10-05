@@ -1415,3 +1415,75 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .toast.success { border-color: rgba(40,200,80,0.4); }
 .toast.error   { border-color: rgba(232,0,26,0.4); }
+
+
+/* ── ESTRELAS ── */
+.stars {
+  --pct: 0%;
+  display: inline-block;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  background: linear-gradient(90deg, var(--red) var(--pct), var(--muted-2) var(--pct));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.top-list-rating .stars, .drill-rating .stars { font-size: 15px; }
+.rating-chip .stars { font-size: 15px; }
+.drill-rating { min-width: 80px; }
+
+.card-personal-rating {
+  width: auto;
+  min-width: 26px;
+  padding: 0 8px;
+  border-radius: 13px;
+  white-space: nowrap;
+}
+
+.rating-row { display: block; }
+.star-input {
+  position: relative;
+  display: inline-block;
+  font-size: 46px;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.star-input-stars { display: block; transition: none; }
+.star-hit {
+  position: absolute;
+  top: 0;
+  width: 10%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.star-hit:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; border-radius: 4px; }
+.star-readout {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  min-height: 18px;
+}
+.star-actions { display: flex; gap: 8px; margin-top: 10px; }
+.star-action {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.star-action:hover { border-color: var(--red); color: var(--red); }
+.star-action.selected { border-color: var(--red); color: #fff; background: var(--red); }
+@media (max-width: 480px) { .star-input { font-size: 52px; } }

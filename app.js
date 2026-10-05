@@ -49,7 +49,7 @@ function toDb(movie) {
     runtime:         movie.runtime   || null,
     type:            movie.type      || null,
     country:         movie.country   || null,
-    personal_rating: movie.personalRating || null,
+    personal_rating: movie.personalRating ?? null,
     review:          movie.review         || null,
     total_seasons:   movie.totalSeasons   || null,
   };
@@ -71,6 +71,7 @@ function fromDb(row) {
     type:           row.type,
     country:        row.country,
     personalRating: row.personal_rating,
+    personalRating10: row.personal_rating_10 ?? null, // nota antiga (0-10), só para desempate
     review:         row.review,
     addedAt:        row.added_at,
     totalSeasons:   row.total_seasons,
@@ -128,7 +129,7 @@ async function removeFromWatchlist(id) {
 
 async function updateWatched(id, updates) {
   const { error } = await db.from('watched')
-    .update({ personal_rating: updates.personalRating || null, review: updates.review || null })
+    .update({ personal_rating: updates.personalRating ?? null, review: updates.review || null })
     .eq('imdb_id', id);
   if (error) throw error;
   const idx = _watched.findIndex(m => m.imdbId === id);
@@ -312,7 +313,7 @@ function renderStats(container) {
 
   const totalFilmes = watched.filter(m => m.type === 'movie').length;
   const totalSeries = watched.filter(m => m.type === 'series').length;
-  const rated       = watched.filter(m => m.personalRating);
+  const rated       = watched.filter(m => m.personalRating != null);
   const avgRating   = rated.length
     ? (rated.reduce((s, m) => s + m.personalRating, 0) / rated.length).toFixed(1) : '—';
   const imdbRated   = watched.filter(m => m.imdbRating);
@@ -365,8 +366,8 @@ function renderStats(container) {
   }, 0);
 
   // Top rated
-  const topRated = [...watched].filter(m => m.personalRating)
-    .sort((a, b) => b.personalRating - a.personalRating).slice(0, 5);
+  const topRated = [...watched].filter(m => m.personalRating != null)
+    .sort(byRatingDesc).slice(0, 5);
 
   // Recent
   const recent = [...watched]
@@ -426,7 +427,7 @@ function renderStats(container) {
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Filmes vistos</div><div class="stat-value">${totalFilmes}</div></div>
       <div class="stat-card"><div class="stat-label">Séries vistas</div><div class="stat-value">${totalSeries}</div></div>
-      <div class="stat-card"><div class="stat-label">Nota média</div><div class="stat-value red">${avgRating}<span>/ 10</span></div></div>
+      <div class="stat-card"><div class="stat-label">Nota média</div><div class="stat-value red">${avgRating}<span>/ 5 ★</span></div></div>
       <div class="stat-card"><div class="stat-label">Média IMDB</div><div class="stat-value">${avgImdb}<span>/ 10</span></div></div>
       <div class="stat-card"><div class="stat-label">Na watchlist</div><div class="stat-value">${watchlist.length}</div></div>
       <div class="stat-card"><div class="stat-label">Com review</div><div class="stat-value">${watched.filter(m => m.review).length}</div></div>
@@ -450,7 +451,7 @@ function renderStats(container) {
                 <div class="top-list-title">${esc(m.title)}</div>
                 <div class="top-list-meta">${m.year} · ${typeLabel(m.type)}</div>
               </div>
-              <div class="top-list-rating">${m.personalRating}/10</div>
+              <div class="top-list-rating">${starsHtml(m.personalRating)}</div>
             </div>`).join('')}
         </div>
       </div>` : ''}
@@ -467,7 +468,7 @@ function renderStats(container) {
                 <div class="top-list-title">${esc(m.title)}</div>
                 <div class="top-list-meta">${m.year} · ${m.genre.slice(0,2).join(', ') || '—'}</div>
               </div>
-              ${m.personalRating ? `<div class="top-list-rating">${m.personalRating}/10</div>` : ''}
+              ${m.personalRating != null ? `<div class="top-list-rating">${starsHtml(m.personalRating)}</div>` : ''}
             </div>`).join('')}
         </div>
       </div>` : ''}
@@ -509,7 +510,7 @@ function applyFilters(movies, isWatchlist = false) {
     if (s === 'title')          return a.title.localeCompare(b.title);
     if (s === 'year')           return parseInt(b.year) - parseInt(a.year);
     if (s === 'imdbRating')     return (parseFloat(b.imdbRating) || 0) - (parseFloat(a.imdbRating) || 0);
-    if (s === 'personalRating') return (b.personalRating || 0) - (a.personalRating || 0);
+    if (s === 'personalRating') return byRatingDesc(a, b);
     return new Date(b.addedAt) - new Date(a.addedAt);
   });
   return list;
@@ -612,7 +613,7 @@ function buildCard(movie, listType) {
           <div class="overlay-title">${esc(movie.title)}</div>
           <div class="overlay-year">${movie.year}</div>
         </div>
-        ${movie.personalRating ? `<div class="card-personal-rating">${movie.personalRating}</div>` : ''}
+        ${movie.personalRating != null ? `<div class="card-personal-rating" title="${fmtRating(movie.personalRating)} em 5 estrelas">★ ${fmtRating(movie.personalRating)}</div>` : ''}
         <div class="card-type-badge">${typeLabel(movie.type)}</div>
         ${listType === 'watchlist' && isLoggedIn() ? `<button class="watchlist-move-btn" data-id="${movie.imdbId}">✓ Já vi</button>` : ''}
       </div>
@@ -803,13 +804,29 @@ function attachResultListeners() {
   });
 }
 
+// ── ESTRELAS (0 a 5, passos de 0.5) ───────────────
+// Ordena por estrelas; em caso de empate usa a nota antiga (0-10)
+function byRatingDesc(a, b) {
+  return ((b.personalRating ?? -1) - (a.personalRating ?? -1))
+      || ((b.personalRating10 ?? 0) - (a.personalRating10 ?? 0));
+}
+
+function fmtRating(v) {
+  const n = Number(v);
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+function starsHtml(v) {
+  const n = Math.max(0, Math.min(5, Number(v)));
+  return `<span class="stars" style="--pct:${n * 20}%" role="img" aria-label="${fmtRating(n)} em 5 estrelas" title="${fmtRating(n)} / 5">★★★★★</span>`;
+}
+
 // ── REGISTER MODAL ────────────────────────────────
 function resetRegisterBtn() {
   const submit = document.querySelector('#registerForm [type="submit"]');
   if (submit) { submit.textContent = 'Guardar no Mural'; submit.disabled = false; }
   const ratingInput = document.getElementById('ratingInput');
   if (ratingInput) ratingInput.value = '';
-  document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
 }
 
 function openRegisterModal(movie, existingData = null) {
@@ -828,31 +845,43 @@ function openRegisterModal(movie, existingData = null) {
 
   const ratingRow   = document.getElementById('ratingRow');
   const ratingInput = document.getElementById('ratingInput');
-  ratingRow.innerHTML = '';
+  ratingRow.innerHTML = `
+    <div class="star-input" id="starInput">
+      <span class="stars star-input-stars" aria-hidden="true">★★★★★</span>
+      ${Array.from({ length: 10 }, (_, i) => {
+        const v = (i + 1) / 2;
+        return `<button type="button" class="star-hit" data-val="${v}" style="left:${i * 10}%" aria-label="${fmtRating(v)} estrelas"></button>`;
+      }).join('')}
+    </div>
+    <div class="star-readout" id="starReadout"></div>
+    <div class="star-actions">
+      <button type="button" class="star-action" data-val="0">0 estrelas</button>
+      <button type="button" class="star-action" data-val="">Sem nota</button>
+    </div>`;
+
+  const starsEl  = ratingRow.querySelector('.star-input-stars');
+  const readout  = ratingRow.querySelector('#starReadout');
+  const paint    = (val) => starsEl.style.setProperty('--pct', (val == null ? 0 : val * 20) + '%');
+  const current  = () => ratingInput.value === '' ? null : parseFloat(ratingInput.value);
 
   const setRating = (val) => {
-    ratingInput.value = val !== null ? parseFloat(val).toFixed(1) : '';
-    ratingRow.querySelectorAll('.rating-btn').forEach(b => {
-      b.classList.toggle('selected', parseInt(b.dataset.val) === Math.round(parseFloat(val)));
-    });
+    ratingInput.value = val == null ? '' : String(val);
+    paint(val);
+    readout.textContent = val == null ? 'Sem nota' : `${fmtRating(val)} / 5`;
+    ratingRow.querySelectorAll('.star-action').forEach(b =>
+      b.classList.toggle('selected', b.dataset.val === ratingInput.value));
   };
 
-  for (let i = 1; i <= 10; i++) {
-    const btn = document.createElement('button');
-    btn.type = 'button'; btn.className = 'rating-btn';
-    btn.textContent = i; btn.dataset.val = i;
-    btn.addEventListener('click', () => setRating(i));
-    ratingRow.appendChild(btn);
-  }
-
-  ratingInput.addEventListener('input', () => {
-    const v = parseFloat(ratingInput.value);
-    if (!isNaN(v) && v >= 1 && v <= 10) {
-      ratingRow.querySelectorAll('.rating-btn').forEach(b => {
-        b.classList.toggle('selected', parseInt(b.dataset.val) === Math.round(v));
-      });
-    }
+  ratingRow.querySelectorAll('.star-hit').forEach(btn => {
+    const v = parseFloat(btn.dataset.val);
+    btn.addEventListener('click', () => setRating(v));
+    btn.addEventListener('mouseenter', () => paint(v));
+    btn.addEventListener('focus', () => paint(v));
+    btn.addEventListener('blur', () => paint(current()));
   });
+  ratingRow.querySelector('#starInput').addEventListener('mouseleave', () => paint(current()));
+  ratingRow.querySelectorAll('.star-action').forEach(btn =>
+    btn.addEventListener('click', () => setRating(btn.dataset.val === '' ? null : 0)));
 
   setRating(existingData?.personalRating ?? null);
 
@@ -872,7 +901,7 @@ async function handleRegisterSubmit(e) {
 
   const ratingInput    = document.getElementById('ratingInput');
   const inputVal       = parseFloat(ratingInput?.value);
-  const personalRating = !isNaN(inputVal) && inputVal >= 1 && inputVal <= 10 ? inputVal : null;
+  const personalRating = !isNaN(inputVal) && inputVal >= 0 && inputVal <= 5 ? Math.round(inputVal * 2) / 2 : null;
   const review         = document.getElementById('reviewInput').value.trim() || null;
 
   try {
@@ -915,7 +944,7 @@ function openDetailModal(id, listType) {
 
         <div class="detail-ratings">
           ${movie.imdbRating ? `<div class="rating-chip"><span>★ ${movie.imdbRating}</span><span class="chip-label">IMDB</span></div>` : ''}
-          ${movie.personalRating ? `<div class="rating-chip personal"><span>${movie.personalRating}/10</span><span class="chip-label">a tua nota</span></div>` : ''}
+          ${movie.personalRating != null ? `<div class="rating-chip personal"><span>${starsHtml(movie.personalRating)}</span><span class="chip-label">a tua nota</span></div>` : ''}
           ${movie.rated ? `<div class="rating-chip"><span>${esc(movie.rated)}</span><span class="chip-label">classificação</span></div>` : ''}
         </div>
 
@@ -995,7 +1024,7 @@ function openDrill(type, value) {
   else if (type === 'director') movies = watched.filter(m => m.director?.split(', ').includes(value));
   else if (type === 'actor')    movies = watched.filter(m => m.actors?.split(', ').includes(value));
 
-  movies = movies.sort((a, b) => (b.personalRating || 0) - (a.personalRating || 0));
+  movies = movies.sort(byRatingDesc);
 
   document.getElementById('drillTitle').textContent = value;
   document.getElementById('drillContent').innerHTML = `
@@ -1010,7 +1039,7 @@ function openDrill(type, value) {
             <div class="drill-movie-meta">${m.year} · ${typeLabel(m.type)}</div>
           </div>
           ${m.personalRating != null
-            ? `<div class="drill-rating">${m.personalRating}</div>`
+            ? `<div class="drill-rating">${starsHtml(m.personalRating)}</div>`
             : `<div class="drill-rating drill-rating-empty">—</div>`}
         </div>`).join('')}
     </div>`;
